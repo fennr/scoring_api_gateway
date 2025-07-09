@@ -1,0 +1,61 @@
+enum VerificationStatus {
+  IN_PROCESS
+  PROCESSING
+  COMPLETED
+  ERROR
+  COMPANY_NOT_FOUND
+}
+
+enum VerificationDataType {
+  BASIC_INFORMATION
+  ACTIVITIES
+  ADDRESSES_BY_CREDINFORM
+  ADDRESSES_BY_UNIFIED_STATE_REGISTER
+  AFFILIATED_COMPANIES
+  ARBITRAGE_STATISTICS
+}
+
+type VerificationData {
+  dataType: VerificationDataType!
+  data: String!
+  createdAt: String!
+}
+
+type VerificationDataResult {
+  verification: Verification!
+  basicInformation: String
+  activities: String
+  addressesByCredinform: String
+  addressesByUnifiedStateRegister: String
+  affiliatedCompanies: String
+  arbitrageStatistics: String
+}
+
+type Verification {
+  id: ID!
+  inn: String!
+  status: VerificationStatus!
+  authorEmail: String!
+  companyId: String
+  requestedDataTypes: [VerificationDataType!]!
+  data: [VerificationData!]
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Query {
+  verification(id: ID!): Verification
+  verifications(limit: Int, offset: Int): [Verification!]!
+  verificationWithData(id: ID!): VerificationDataResult
+}
+
+type Mutation {
+  createVerification(
+    inn: String!
+    requestedDataTypes: [VerificationDataType!]!
+  ): Verification!
+}
+
+type Subscription {
+  verificationCompleted(id: ID!): Verification!
+}
