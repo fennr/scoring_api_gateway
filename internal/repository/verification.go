@@ -18,17 +18,20 @@ type VerificationRepository interface {
 }
 
 type verificationRepository struct {
-	db     *pgxpool.Pool
-	logger *zap.Logger
+	db        *pgxpool.Pool
+	cacheRepo DataCacheRepository
+	logger    *zap.Logger
 }
 
-func NewVerificationRepository(db *pgxpool.Pool, logger *zap.Logger) VerificationRepository {
+func NewVerificationRepository(db *pgxpool.Pool, cacheRepo DataCacheRepository, logger *zap.Logger) VerificationRepository {
 	return &verificationRepository{
-		db:     db,
-		logger: logger,
+		db:        db,
+		cacheRepo: cacheRepo,
+		logger:    logger,
 	}
 }
 
+// GetByID получает проверку по ID с использованием системы кэширования
 func (r *verificationRepository) GetByID(ctx context.Context, id string) (*model.Verification, error) {
 	query := `
 		SELECT id, inn, status, author_email, company_id, requested_data_types, created_at, updated_at
@@ -51,7 +54,7 @@ func (r *verificationRepository) GetByID(ctx context.Context, id string) (*model
 	verification.UpdatedAt = updatedAt.Format(time.RFC3339)
 
 	dataQuery := `
-		SELECT data_type, data, created_at
+		SELECT data_type, data_hash, created_at
 		FROM verification_data
 		WHERE verification_id = $1
 		ORDER BY created_at
@@ -68,11 +71,25 @@ func (r *verificationRepository) GetByID(ctx context.Context, id string) (*model
 	for rows.Next() {
 		var vd model.VerificationData
 		var dataCreatedAt time.Time
-		err := rows.Scan(&vd.DataType, &vd.Data, &dataCreatedAt)
+		var dataHash *string
+		err := rows.Scan(&vd.DataType, &dataHash, &dataCreatedAt)
 		if err != nil {
 			r.logger.Error("failed to scan verification data", zap.Error(err))
 			continue
 		}
+
+		if dataHash != nil && *dataHash != "" {
+			cachedData, cacheErr := r.cacheRepo.GetDataByHash(ctx, *dataHash)
+			if cacheErr != nil {
+				r.logger.Warn("failed to get data from cache, skipping record", zap.Error(cacheErr), zap.String("hash", *dataHash))
+				continue
+			}
+			vd.Data = cachedData
+		} else {
+			r.logger.Warn("verification data has no hash, skipping", zap.String("data_type", string(vd.DataType)))
+			continue
+		}
+
 		vd.CreatedAt = dataCreatedAt.Format(time.RFC3339)
 		data = append(data, &vd)
 	}

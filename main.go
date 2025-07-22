@@ -100,7 +100,8 @@ func main() {
 
 	log.Info("Connected to NATS")
 
-	verificationRepo := repository.NewVerificationRepository(db, log)
+	cacheRepo := repository.NewDataCacheRepository(db, log)
+	verificationRepo := repository.NewVerificationRepository(db, cacheRepo, log)
 	verificationService := service.NewVerificationService(verificationRepo, natsClient, log)
 
 	// Подписываемся на уведомления о завершении обработки
