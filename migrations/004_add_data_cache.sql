@@ -34,7 +34,19 @@ DECLARE
     rec RECORD;
     computed_hash VARCHAR(64);
     processed_count INTEGER := 0;
+    data_column_exists BOOLEAN := false;
 BEGIN
+    -- Check if data column exists
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'verification_data' AND column_name = 'data'
+    ) INTO data_column_exists;
+    
+    IF NOT data_column_exists THEN
+        RAISE NOTICE 'Data column does not exist in verification_data table. Migration already completed or not needed.';
+        RETURN;
+    END IF;
+    
     RAISE NOTICE 'Starting migration of existing verification data...';
     
     FOR rec IN SELECT id, data FROM verification_data WHERE data_hash IS NULL AND data IS NOT NULL LOOP

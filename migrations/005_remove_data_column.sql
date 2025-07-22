@@ -6,7 +6,19 @@
 DO $$
 DECLARE
     records_without_hash INTEGER;
+    data_column_exists BOOLEAN := false;
 BEGIN
+    -- Check if data column exists
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'verification_data' AND column_name = 'data'
+    ) INTO data_column_exists;
+    
+    IF NOT data_column_exists THEN
+        RAISE NOTICE 'Data column does not exist. Migration already completed.';
+        RETURN;
+    END IF;
+    
     SELECT COUNT(*) INTO records_without_hash 
     FROM verification_data 
     WHERE data_hash IS NULL AND data IS NOT NULL;
