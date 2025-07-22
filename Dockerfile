@@ -12,6 +12,5 @@ FROM alpine:3.19
 WORKDIR /app
 COPY --from=builder /app/scoring_api_gateway /app/scoring_api_gateway
 COPY --from=builder /app/migrations ./migrations
-COPY config.yaml ./
 EXPOSE 8080
 CMD ["/app/scoring_api_gateway"] 
